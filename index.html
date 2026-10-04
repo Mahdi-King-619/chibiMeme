@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Memeforge</title>
+<title>ChibiChibi</title>
 <link href="https://fonts.googleapis.com/css2?family=Anton&family=Bangers&family=Bricolage+Grotesque:wght@500;700&family=Caveat:wght@700&family=Inter:wght@900&display=swap" rel="stylesheet">
 <style>
 :root{--bg:#161b33;--panel:#1f2646;--line:#323b69;--ink:#eef0fb;--mute:#9aa3cf;--jade:#79c79a;--rose:#f08fa6;color-scheme:dark}
@@ -112,6 +112,7 @@ input[type=color]{width:34px;height:28px;padding:0;border:1px solid var(--line);
 
 <script>
 const $=s=>document.querySelector(s), W=1080;
+const DEFAULT_BG = window.location.pathname.includes('/memeforge') ? 'assets/default.png' : 'memeforge/assets/default.png';
 const FONTS={Impact:'Impact, Anton, "Arial Narrow", sans-serif',Anton:'Anton, Impact, sans-serif',Bangers:'Bangers, cursive',Inter:'Inter, Helvetica, Arial, sans-serif',Caveat:'Caveat, cursive'};
 const WEIGHT={Inter:900,Caveat:700};
 const cv=$('#cv'), ctx=cv.getContext('2d');
@@ -204,7 +205,7 @@ $('#barsize').addEventListener('input',e=>{S.bar.size=+e.target.value;render()})
 function loadSrc(src){return new Promise(res=>{const i=new Image();i.onload=()=>{img=i;res();sync()};i.onerror=()=>toast('Could not load that image');i.src=src})}
 const loadFile=f=>{if(f&&f.type.startsWith('image/'))loadSrc(URL.createObjectURL(f))};
 $('#pick').onclick=()=>$('#file').click();$('#file').onchange=e=>loadFile(e.target.files[0]);
-$('#usedef').onclick=()=>loadSrc('assets/default.png');
+$('#usedef').onclick=()=>loadSrc(DEFAULT_BG);
 addEventListener('dragover',e=>e.preventDefault());
 addEventListener('drop',e=>{e.preventDefault();loadFile(e.dataTransfer.files[0])});
 addEventListener('paste',e=>{const f=[...e.clipboardData.files][0];if(f)loadFile(f)});
@@ -254,7 +255,7 @@ $('#share').onclick=async()=>{try{const b=await blob('image/png'),f=new File([b]
 /* ---------- boot ---------- */
 (async()=>{
   S.layers=[mk({t:'ME: "I\'M NOT FALLING FOR IT"',y:.08,size:7.5}),mk({t:'HIM: *SMILES*',y:.93,size:7.5})];S.sel=S.layers[0].id;
-  await Promise.all([loadSrc('assets/default.png'),ready()]);
+  await Promise.all([loadSrc(DEFAULT_BG),ready()]);
   commit();sync();
 })();
 </script>
