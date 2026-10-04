@@ -1,0 +1,262 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Memeforge</title>
+<link href="https://fonts.googleapis.com/css2?family=Anton&family=Bangers&family=Bricolage+Grotesque:wght@500;700&family=Caveat:wght@700&family=Inter:wght@900&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#161b33;--panel:#1f2646;--line:#323b69;--ink:#eef0fb;--mute:#9aa3cf;--jade:#79c79a;--rose:#f08fa6;color-scheme:dark}
+*{box-sizing:border-box}
+html,body{margin:0;height:100%}
+body{background:var(--bg);color:var(--ink);font:500 14px/1.4 "Bricolage Grotesque",system-ui,sans-serif}
+.app{display:grid;grid-template-columns:minmax(0,1fr) 340px;height:100%}
+.stage{display:flex;flex-direction:column;min-width:0;padding:16px;gap:12px}
+.top{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.top h1{font-size:20px;margin:0 auto 0 0;letter-spacing:-.01em}
+.top h1 span{color:var(--jade)}
+.well{flex:1;min-height:0;display:grid;place-items:center;background:repeating-conic-gradient(#1b2142 0 25%,#181d3a 0 50%) 0 0/24px 24px;border-radius:10px;overflow:hidden;padding:12px}
+canvas{max-width:100%;max-height:100%;box-shadow:0 8px 40px #0008;touch-action:none;cursor:grab;background:#000}
+canvas.drag{cursor:grabbing}
+.hint{color:var(--mute);font-size:12px}
+aside{background:var(--panel);border-left:1px solid var(--line);overflow:auto;padding:12px 14px 40px}
+details{border-bottom:1px solid var(--line);padding:8px 0}
+summary{cursor:pointer;font-weight:700;padding:4px 0}
+.row{display:flex;gap:8px;align-items:center;margin:8px 0;flex-wrap:wrap}
+.row label{flex:0 0 76px;color:var(--mute);font-size:12px}
+.row input[type=range]{flex:1;min-width:0;accent-color:var(--jade)}
+button,select,textarea,input[type=text]{font:inherit;color:var(--ink);background:#2a3360;border:1px solid var(--line);border-radius:6px;padding:6px 10px}
+button{cursor:pointer}
+button:hover{border-color:var(--jade)}
+button.pri{background:var(--jade);color:#10241a;border-color:var(--jade);font-weight:700}
+button.pri:hover{filter:brightness(1.08)}
+button:focus-visible,select:focus-visible,textarea:focus-visible,input:focus-visible,summary:focus-visible{outline:2px solid var(--rose);outline-offset:2px}
+textarea{width:100%;resize:vertical;min-height:58px}
+input[type=color]{width:34px;height:28px;padding:0;border:1px solid var(--line);border-radius:6px;background:none}
+.chips{display:flex;gap:6px;flex-wrap:wrap}
+.emo button{font-size:18px;padding:3px 7px}
+#list{display:flex;flex-direction:column;gap:4px;margin:6px 0}
+#list button{text-align:left;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#list button.on{border-color:var(--rose);background:#3a2f58}
+.dim{opacity:.45;pointer-events:none}
+.toast{position:fixed;left:50%;bottom:20px;transform:translateX(-50%);background:var(--jade);color:#10241a;padding:8px 14px;border-radius:8px;font-weight:700;opacity:0;transition:opacity .2s;pointer-events:none}
+.toast.show{opacity:1}
+@media(max-width:900px){.app{grid-template-columns:1fr;height:auto}.well{min-height:50vh}aside{border-left:0;border-top:1px solid var(--line)}}
+@media(prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+</head>
+<body>
+<div class="app">
+  <main class="stage">
+    <div class="top">
+      <h1>Meme<span>forge</span></h1>
+      <button id="undo" title="Ctrl+Z">Undo</button>
+      <button id="redo" title="Ctrl+Shift+Z">Redo</button>
+      <button id="png" class="pri">Save PNG</button>
+      <button id="jpg">Save JPG</button>
+      <button id="copy">Copy</button>
+      <button id="share">Share</button>
+    </div>
+    <div class="well"><canvas id="cv" width="1080" height="608" aria-label="Meme canvas"></canvas></div>
+    <div class="hint">Drag layers to move. Scroll over a layer to resize. Arrow keys nudge, Del removes, Ctrl+D duplicates. Drop or paste an image to replace the background.</div>
+  </main>
+
+  <aside>
+    <details open><summary>Quick styles</summary>
+      <div class="chips">
+        <button data-pre="classic">Classic top/bottom</button>
+        <button data-pre="subtitle">Subtitle</button>
+        <button data-pre="bar">Caption bar</button>
+        <button data-pre="reaction">Reaction</button>
+        <button id="dice">Surprise me</button>
+      </div>
+    </details>
+
+    <details open><summary>Image</summary>
+      <div class="row"><input id="file" type="file" accept="image/*" hidden><button id="pick">Upload image</button><button id="usedef">Use default</button></div>
+      <div class="row"><label for="aspect">Crop</label>
+        <select id="aspect"><option value="orig">Original</option><option value="1">Square 1:1</option><option value="1.7778">Wide 16:9</option><option value="0.5625">Story 9:16</option><option value="1.25">Post 5:4</option></select></div>
+      <div class="row"><label for="fb">Brightness</label><input id="fb" data-f="b" type="range" min="40" max="200"></div>
+      <div class="row"><label for="fc">Contrast</label><input id="fc" data-f="c" type="range" min="40" max="300"></div>
+      <div class="row"><label for="fs">Saturation</label><input id="fs" data-f="s" type="range" min="0" max="400"></div>
+      <div class="row"><label for="fg">Grayscale</label><input id="fg" data-f="g" type="range" min="0" max="100"></div>
+      <div class="row"><label for="fl">Blur</label><input id="fl" data-f="bl" type="range" min="0" max="12"></div>
+      <div class="chips"><button id="fry">Deep fry</button><button id="noir">Noir</button><button id="fix">Reset filters</button></div>
+    </details>
+
+    <details><summary>Caption bar</summary>
+      <div class="row"><label><input type="checkbox" id="baron"> Show bar</label></div>
+      <textarea id="bartext" aria-label="Caption bar text"></textarea>
+      <div class="row"><label for="barsize">Size</label><input id="barsize" type="range" min="3" max="10" step=".25"></div>
+    </details>
+
+    <details open><summary>Layers</summary>
+      <div class="chips"><button id="addt" class="pri">Add text</button><button id="dup">Duplicate</button><button id="front">To front</button><button id="del">Delete</button></div>
+      <div id="list"></div>
+      <div class="chips emo" id="emo"></div>
+    </details>
+
+    <details open id="props"><summary>Selected layer</summary>
+      <textarea id="t" aria-label="Layer text"></textarea>
+      <div class="row"><label for="font">Font</label>
+        <select id="font"><option>Impact</option><option>Anton</option><option>Bangers</option><option>Inter</option><option>Caveat</option></select></div>
+      <div class="row"><label for="size">Size</label><input id="size" type="range" min="2" max="40" step=".5"></div>
+      <div class="row"><label for="w">Wrap width</label><input id="w" type="range" min="10" max="100"></div>
+      <div class="row"><label for="rot">Rotate</label><input id="rot" type="range" min="-180" max="180"></div>
+      <div class="row"><label for="sw">Outline</label><input id="sw" type="range" min="0" max="25"></div>
+      <div class="row"><label>Colors</label><input id="color" type="color" title="Fill"><input id="stroke" type="color" title="Outline"><input id="bg" type="color" title="Box"><label style="flex:0 0 auto"><input id="box" type="checkbox"> Box</label><label style="flex:0 0 auto"><input id="upper" type="checkbox"> CAPS</label></div>
+    </details>
+  </aside>
+</div>
+<div class="toast" id="toast"></div>
+
+<script>
+const $=s=>document.querySelector(s), W=1080;
+const FONTS={Impact:'Impact, Anton, "Arial Narrow", sans-serif',Anton:'Anton, Impact, sans-serif',Bangers:'Bangers, cursive',Inter:'Inter, Helvetica, Arial, sans-serif',Caveat:'Caveat, cursive'};
+const WEIGHT={Inter:900,Caveat:700};
+const cv=$('#cv'), ctx=cv.getContext('2d');
+const DEF={b:100,c:100,s:100,bl:0,g:0};
+let S={aspect:'orig',bar:{on:false,text:'when you finally understand the plan',size:5.5},f:{...DEF},layers:[],sel:null,uid:0};
+let img=new Image(), hist=[], hi=-1;
+
+const mk=o=>({id:++S.uid,t:'TEXT',x:.5,y:.15,size:9,rot:0,font:'Impact',color:'#ffffff',stroke:'#000000',sw:10,upper:true,box:false,bg:'#000000',w:90,...o});
+const cur=()=>S.layers.find(l=>l.id===S.sel);
+
+/* ---------- drawing ---------- */
+function wrap(c,t,max){const out=[];for(const p of t.split('\n')){let line='';for(const w of p.split(' ')){const tr=line?line+' '+w:w;if(c.measureText(tr).width>max&&line){out.push(line);line=w}else line=tr}out.push(line)}return out}
+const fontStr=(l,fs)=>`${WEIGHT[l.font]||400} ${fs}px ${FONTS[l.font]}`;
+function layout(c){
+  const r=S.aspect==='orig'?(img.naturalWidth/img.naturalHeight||1.78):+S.aspect;
+  const ph=Math.round(W/r); let bh=0,lines=[];
+  if(S.bar.on){const fs=S.bar.size/100*W;c.font=`900 ${fs}px ${FONTS.Inter}`;lines=wrap(c,S.bar.text,W*.92);bh=Math.round(lines.length*fs*1.2+fs*.9)}
+  return {ph,bh,lines};
+}
+function draw(c,sel){
+  const {ph,bh,lines}=layout(c), Ht=ph+bh;
+  c.canvas.width=W;c.canvas.height=Ht;
+  c.fillStyle='#fff';c.fillRect(0,0,W,Ht);
+  if(img.complete&&img.naturalWidth){
+    const ir=img.naturalWidth/img.naturalHeight,r=W/ph;let sx=0,sy=0,sw=img.naturalWidth,sh=img.naturalHeight;
+    if(ir>r){sw=sh*r;sx=(img.naturalWidth-sw)/2}else{sh=sw/r;sy=(img.naturalHeight-sh)/2}
+    const f=S.f;c.filter=`brightness(${f.b}%) contrast(${f.c}%) saturate(${f.s}%) grayscale(${f.g}%) blur(${f.bl}px)`;
+    c.drawImage(img,sx,sy,sw,sh,0,bh,W,ph);c.filter='none';
+  }
+  if(bh){const fs=S.bar.size/100*W;c.font=`900 ${fs}px ${FONTS.Inter}`;c.fillStyle='#000';c.textAlign='center';c.textBaseline='middle';
+    lines.forEach((ln,i)=>c.fillText(ln,W/2,(bh-lines.length*fs*1.2)/2+(i+.5)*fs*1.2))}
+  for(const l of S.layers)drawLayer(c,l,Ht,sel&&l.id===S.sel);
+}
+function drawLayer(c,l,Ht,isSel){
+  const fs=l.size/100*W;c.font=fontStr(l,fs);
+  const txt=l.upper?l.t.toUpperCase():l.t, lines=wrap(c,txt,l.w/100*W), lh=fs*1.12;
+  const tw=Math.max(...lines.map(s=>c.measureText(s).width),fs*.5), th=lines.length*lh;
+  const cx=l.x*W, cy=l.y*Ht; l._b={cx,cy,w:tw,h:th};
+  c.save();c.translate(cx,cy);c.rotate(l.rot*Math.PI/180);
+  c.textAlign='center';c.textBaseline='middle';c.lineJoin='round';c.font=fontStr(l,fs);
+  if(l.box){c.globalAlpha=.75;c.fillStyle=l.bg;const p=fs*.25;c.fillRect(-tw/2-p,-th/2-p/2,tw+2*p,th+p);c.globalAlpha=1}
+  lines.forEach((ln,i)=>{const y=(i-(lines.length-1)/2)*lh;
+    if(l.sw>0){c.lineWidth=l.sw/100*fs;c.strokeStyle=l.stroke;c.strokeText(ln,0,y)}
+    c.fillStyle=l.color;c.fillText(ln,0,y)});
+  if(isSel){c.setLineDash([10,8]);c.lineWidth=3;c.strokeStyle='#f08fa6';c.strokeRect(-tw/2-14,-th/2-8,tw+28,th+16)}
+  c.restore();
+}
+const render=()=>draw(ctx,true);
+
+/* ---------- history ---------- */
+const snap=()=>JSON.stringify({a:S.aspect,bar:S.bar,f:S.f,u:S.uid,sel:S.sel,l:S.layers.map(({_b,...r})=>r)});
+function commit(){const s=snap();if(hist[hi]===s)return;hist=hist.slice(0,hi+1);hist.push(s);if(hist.length>80)hist.shift();hi=hist.length-1}
+function restore(s){const o=JSON.parse(s);S.aspect=o.a;S.bar=o.bar;S.f=o.f;S.uid=o.u;S.sel=o.sel;S.layers=o.l;sync()}
+const undo=()=>{if(hi>0){restore(hist[--hi])}}, redo=()=>{if(hi<hist.length-1){restore(hist[++hi])}};
+
+/* ---------- UI sync ---------- */
+function sync(){
+  $('#aspect').value=S.aspect;
+  for(const el of document.querySelectorAll('[data-f]'))el.value=S.f[el.dataset.f];
+  $('#baron').checked=S.bar.on;$('#bartext').value=S.bar.text;$('#barsize').value=S.bar.size;
+  const list=$('#list');list.innerHTML='';
+  [...S.layers].reverse().forEach(l=>{const b=document.createElement('button');b.textContent=(l.t.split('\n')[0]||'(empty)').slice(0,40);b.className=l.id===S.sel?'on':'';b.onclick=()=>{S.sel=l.id;sync()};list.appendChild(b)});
+  const l=cur();$('#props').classList.toggle('dim',!l);
+  if(l){$('#t').value=l.t;for(const k of ['font','size','w','rot','sw','color','stroke','bg'])$('#'+k).value=l[k];$('#box').checked=l.box;$('#upper').checked=l.upper}
+  $('#undo').disabled=hi<=0;$('#redo').disabled=hi>=hist.length-1;
+  render();
+}
+const ready=()=>Promise.all(Object.values(FONTS).map(f=>document.fonts.load(`40px ${f.split(',')[0]}`).catch(()=>0)));
+
+/* ---------- layer controls ---------- */
+const bindL=(id,k,conv=v=>v)=>{const el=$('#'+id);el.addEventListener('input',()=>{const l=cur();if(!l)return;l[k]=el.type==='checkbox'?el.checked:conv(el.value);render()});el.addEventListener('change',()=>{commit();sync()})};
+bindL('t','t');bindL('font','font');bindL('size','size',parseFloat);bindL('w','w',Number);bindL('rot','rot',Number);bindL('sw','sw',Number);
+bindL('color','color');bindL('stroke','stroke');bindL('bg','bg');bindL('box','box');bindL('upper','upper');
+$('#addt').onclick=()=>{const l=mk({y:.5,t:'NEW TEXT'});S.layers.push(l);S.sel=l.id;commit();sync();$('#t').focus();$('#t').select()};
+$('#dup').onclick=dupSel;$('#del').onclick=delSel;
+$('#front').onclick=()=>{const l=cur();if(!l)return;S.layers=S.layers.filter(x=>x!==l).concat(l);commit();sync()};
+function dupSel(){const l=cur();if(!l)return;const n={...l,id:++S.uid,x:l.x+.03,y:l.y+.03};S.layers.push(n);S.sel=n.id;commit();sync()}
+function delSel(){if(!S.sel)return;S.layers=S.layers.filter(l=>l.id!==S.sel);S.sel=null;commit();sync()}
+for(const e of ['😂','💀','😭','🙄','✨','💢','😏','🔥','👀','❤️','🌸','🍵']){const b=document.createElement('button');b.textContent=e;b.title='Add '+e;
+  b.onclick=()=>{const l=mk({t:e,size:18,sw:0,upper:false,y:.5,w:100});S.layers.push(l);S.sel=l.id;commit();sync()};$('#emo').appendChild(b)}
+
+/* ---------- image controls ---------- */
+$('#aspect').onchange=e=>{S.aspect=e.target.value;commit();sync()};
+for(const el of document.querySelectorAll('[data-f]')){el.addEventListener('input',()=>{S.f[el.dataset.f]=+el.value;render()});el.addEventListener('change',()=>commit())}
+const setF=o=>{S.f={...DEF,...o};commit();sync()};
+$('#fry').onclick=()=>setF({b:115,c:260,s:380});$('#noir').onclick=()=>setF({c:130,s:0,g:100});$('#fix').onclick=()=>setF({});
+$('#baron').onchange=e=>{S.bar.on=e.target.checked;commit();sync()};
+$('#bartext').addEventListener('input',e=>{S.bar.text=e.target.value;render()});$('#bartext').addEventListener('change',()=>commit());
+$('#barsize').addEventListener('input',e=>{S.bar.size=+e.target.value;render()});$('#barsize').addEventListener('change',()=>commit());
+function loadSrc(src){return new Promise(res=>{const i=new Image();i.onload=()=>{img=i;res();sync()};i.onerror=()=>toast('Could not load that image');i.src=src})}
+const loadFile=f=>{if(f&&f.type.startsWith('image/'))loadSrc(URL.createObjectURL(f))};
+$('#pick').onclick=()=>$('#file').click();$('#file').onchange=e=>loadFile(e.target.files[0]);
+$('#usedef').onclick=()=>loadSrc('assets/default.png');
+addEventListener('dragover',e=>e.preventDefault());
+addEventListener('drop',e=>{e.preventDefault();loadFile(e.dataTransfer.files[0])});
+addEventListener('paste',e=>{const f=[...e.clipboardData.files][0];if(f)loadFile(f)});
+
+/* ---------- presets ---------- */
+function preset(n){
+  S.layers=[];S.sel=null;S.bar.on=false;
+  if(n==='classic'){S.layers.push(mk({t:'ONE DOES NOT SIMPLY',y:.09}),mk({t:'PRETEND NOT TO HEAR IT',y:.92}))}
+  if(n==='subtitle'){S.layers.push(mk({t:'He said what now?',font:'Inter',size:5.5,sw:0,upper:false,box:true,y:.9,w:85}))}
+  if(n==='bar'){S.bar.on=true;S.bar.text='me: I refuse to be charmed\nhim:'}
+  if(n==='reaction'){S.layers.push(mk({t:'NOPE.',font:'Bangers',size:20,color:'#ffe14d',rot:-8,x:.28,y:.2,sw:12}),mk({t:'😏',size:16,sw:0,x:.8,y:.18,upper:false,w:100}))}
+  S.sel=S.layers[0]?.id??null;commit();sync();
+}
+document.querySelectorAll('[data-pre]').forEach(b=>b.onclick=()=>preset(b.dataset.pre));
+const JOKES=[['ME: "I\'M NOT FALLING FOR IT"','HIM: *SMILES*'],['WHEN HE SAYS "TRUST ME"','AND YOU CAN SEE THE SCHEME'],['ME EXPLAINING THE POISON','HIM: GO ON, I\'M LISTENING'],['"THIS IS PURELY ACADEMIC"','THE HAREM: SURE.'],['I HAVE NO FEELINGS','THE BLUSH: OK BUT HAVE YOU'],['HE LEANS IN CLOSER','ME: PLEASE STOP BEING SUSPICIOUSLY NICE']];
+$('#dice').onclick=()=>{const [a,b]=JOKES[Math.random()*JOKES.length|0];S.bar.on=false;S.layers=[mk({t:a,y:.09,size:7.5}),mk({t:b,y:.92,size:7.5})];S.sel=S.layers[0].id;commit();sync()};
+
+/* ---------- canvas interaction ---------- */
+let drag=null;
+const pt=e=>{const r=cv.getBoundingClientRect();return{x:(e.clientX-r.left)*cv.width/r.width,y:(e.clientY-r.top)*cv.height/r.height}};
+function hit(p){for(let i=S.layers.length-1;i>=0;i--){const l=S.layers[i],b=l._b;if(!b)continue;const a=-l.rot*Math.PI/180,dx=p.x-b.cx,dy=p.y-b.cy;
+  const rx=dx*Math.cos(a)-dy*Math.sin(a),ry=dx*Math.sin(a)+dy*Math.cos(a);if(Math.abs(rx)<=b.w/2+16&&Math.abs(ry)<=b.h/2+12)return l}return null}
+cv.addEventListener('pointerdown',e=>{const p=pt(e),l=hit(p);S.sel=l?l.id:null;if(l){drag={l,ox:p.x-l.x*W,oy:p.y-l.y*cv.height};cv.setPointerCapture(e.pointerId);cv.classList.add('drag')}sync()});
+cv.addEventListener('pointermove',e=>{if(!drag)return;const p=pt(e);drag.l.x=(p.x-drag.ox)/W;drag.l.y=(p.y-drag.oy)/cv.height;render()});
+cv.addEventListener('pointerup',()=>{if(drag){drag=null;cv.classList.remove('drag');commit();sync()}});
+cv.addEventListener('wheel',e=>{const l=hit(pt(e));if(!l)return;e.preventDefault();l.size=Math.min(40,Math.max(2,l.size*(e.deltaY<0?1.06:.94)));S.sel=l.id;render();clearTimeout(cv._t);cv._t=setTimeout(()=>{commit();sync()},250)},{passive:false});
+addEventListener('keydown',e=>{
+  const typing=/INPUT|TEXTAREA|SELECT/.test(document.activeElement.tagName);
+  if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==='z'){e.preventDefault();e.shiftKey?redo():undo();return}
+  if(typing)return;
+  const l=cur();if(!l)return;
+  if(e.key==='Delete'||e.key==='Backspace'){e.preventDefault();delSel()}
+  else if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==='d'){e.preventDefault();dupSel()}
+  else if(e.key.startsWith('Arrow')){e.preventDefault();const s=e.shiftKey?.02:.004;if(e.key==='ArrowLeft')l.x-=s;if(e.key==='ArrowRight')l.x+=s;if(e.key==='ArrowUp')l.y-=s;if(e.key==='ArrowDown')l.y+=s;render();clearTimeout(cv._k);cv._k=setTimeout(commit,300)}
+});
+$('#undo').onclick=undo;$('#redo').onclick=redo;
+
+/* ---------- export ---------- */
+function toast(m){const t=$('#toast');t.textContent=m;t.classList.add('show');clearTimeout(t._t);t._t=setTimeout(()=>t.classList.remove('show'),1800)}
+function blob(type,q){const o=document.createElement('canvas');draw(o.getContext('2d'),false);return new Promise((res,rej)=>{try{o.toBlob(b=>b?res(b):rej(),type,q)}catch(e){rej(e)}})}
+const fail=()=>toast('Export blocked. Serve the folder over http (see README).');
+const save=async(type,ext)=>{try{const b=await blob(type,.92),a=document.createElement('a');a.href=URL.createObjectURL(b);a.download=`meme-${Date.now()}.${ext}`;a.click();toast('Saved')}catch{fail()}};
+$('#png').onclick=()=>save('image/png','png');$('#jpg').onclick=()=>save('image/jpeg','jpg');
+$('#copy').onclick=async()=>{try{await navigator.clipboard.write([new ClipboardItem({'image/png':blob('image/png')})]);toast('Copied to clipboard')}catch{toast('Copy not supported here. Use Save PNG.')}};
+$('#share').onclick=async()=>{try{const b=await blob('image/png'),f=new File([b],'meme.png',{type:'image/png'});if(navigator.canShare&&navigator.canShare({files:[f]}))await navigator.share({files:[f]});else toast('Sharing not supported here. Use Save PNG.')}catch{}};
+
+/* ---------- boot ---------- */
+(async()=>{
+  S.layers=[mk({t:'ME: "I\'M NOT FALLING FOR IT"',y:.08,size:7.5}),mk({t:'HIM: *SMILES*',y:.93,size:7.5})];S.sel=S.layers[0].id;
+  await Promise.all([loadSrc('assets/default.png'),ready()]);
+  commit();sync();
+})();
+</script>
+</body>
+</html>
